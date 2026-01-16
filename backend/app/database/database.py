@@ -8,6 +8,10 @@ load_dotenv()
 
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./titanbot.db")
 
+# Vercel Read-Only Fix: Use /tmp for SQLite if on Vercel and no Postgres URL provided
+if os.getenv("VERCEL") and "sqlite" in DATABASE_URL:
+     DATABASE_URL = "sqlite:///T:/tmp/titanbot.db" if os.name == 'nt' else "sqlite:////tmp/titanbot.db"
+
 # For Databases (async)
 database = Database(DATABASE_URL)
 
