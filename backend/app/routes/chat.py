@@ -122,7 +122,8 @@ Answer questions based on Machine Learning, Python, Generative AI, and software 
                 try:
                     import google.generativeai as genai
                     genai.configure(api_key=gemini_key)
-                    model = genai.GenerativeModel('gemini-pro')
+                    # Use the latest stable flash model
+                    model = genai.GenerativeModel('gemini-1.5-flash')
                     
                     # Convert OpenAI/Ollama format to Gemini format if needed, or just send prompt
                     # Gemini is simpler with just history.
