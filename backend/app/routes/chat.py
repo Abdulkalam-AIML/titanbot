@@ -89,8 +89,13 @@ async def send_message(
 
     # Prepend System Prompt if not already present implicitly by model behavior
     # (Ollama models often have their own system prompts, but we can enforce one)
-    SYSTEM_PROMPT = """You are TitanBot, a helpful and intelligent AI assistant created by Abdulkalam.
-Answer questions based on Machine Learning, Python, Generative AI, and software engineering."""
+    SYSTEM_PROMPT = """You are TitanBot, an elite Technical AI Assistant specialized in Software Engineering, Coding, and Computer Science.
+    
+    Your Goal: Provide highly accurate, efficient, and technically detailed answers.
+    - Prefer code examples.
+    - Explain complex technical concepts clearly.
+    - Debug errors with precision.
+    """
     
     messages_payload = [{"role": "system", "content": SYSTEM_PROMPT}] + history_msgs
 
@@ -154,7 +159,15 @@ Answer questions based on Machine Learning, Python, Generative AI, and software 
                     except Exception as stream_error:
                          yield f"Error streaming content: {str(stream_error)}"
                 else:
-                    yield f"Cloud Error: Could not find a working Gemini model. \nLast Error: {str(last_error)}\nMake sure your API Key is valid."
+                    # ULTIMATE DEBUG: List what models ARE available
+                    try:
+                        available_models = []
+                        for m in genai.list_models():
+                            if 'generateContent' in m.supported_generation_methods:
+                                available_models.append(m.name)
+                        yield f"Cloud Error: None of the standard models ({candidate_models}) worked.\n\nYOUR AVAILABLE MODELS:\n{', '.join(available_models)}\n\nLast Error: {str(last_error)}"
+                    except Exception as list_error:
+                        yield f"Cloud Error: Could not find any working Gemini model and could not list models.\nCheck your API Key permissions.\nError: {str(list_error)}"
             else:
                 yield f"Running on Cloud (Vercel) but GEMINI_API_KEY is missing.\n\nPlease add GEMINI_API_KEY to your Vercel Environment Variables to enable Cloud Chat."
 
