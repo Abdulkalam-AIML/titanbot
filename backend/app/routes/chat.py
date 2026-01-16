@@ -119,27 +119,42 @@ Answer questions based on Machine Learning, Python, Generative AI, and software 
             
             gemini_key = os.getenv("GEMINI_API_KEY")
             if gemini_key:
-                try:
-                    import google.generativeai as genai
-                    genai.configure(api_key=gemini_key)
-                    # Use the latest stable flash model
-                    model = genai.GenerativeModel('gemini-1.5-flash')
-                    
-                    # Convert OpenAI/Ollama format to Gemini format if needed, or just send prompt
-                    # Gemini is simpler with just history.
-                    chat = model.start_chat(history=[])
-                    # Reconstruct prompt from history (simplified)
-                    full_prompt = f"{SYSTEM_PROMPT}\n\n"
-                    for msg in history_msgs:
-                        full_prompt += f"{msg['role'].upper()}: {msg['content']}\n"
-                    full_prompt += f"USER: {request.message}\nASSISTANT:"
-                    
-                    response = model.generate_content(full_prompt, stream=True)
-                    for chunk in response:
-                        if chunk.text:
-                            yield chunk.text
-                except Exception as gemini_error:
-                    yield f"Error: Both Ollama (Offline) and Gemini (Cloud) failed.\nOllama: {str(ollama_error)}\nGemini: {str(gemini_error)}"
+                import google.generativeai as genai
+                genai.configure(api_key=gemini_key)
+                
+                # List of models to try in order of preference
+                candidate_models = ['gemini-1.5-flash', 'gemini-1.5-pro', 'gemini-1.0-pro', 'gemini-pro']
+                
+                response_stream = None
+                last_error = None
+
+                # Reconstruct prompt (simplified)
+                full_prompt = f"{SYSTEM_PROMPT}\n\n"
+                for msg in history_msgs:
+                    full_prompt += f"{msg['role'].upper()}: {msg['content']}\n"
+                full_prompt += f"USER: {request.message}\nASSISTANT:"
+
+                # Try models one by one
+                for model_name in candidate_models:
+                    try:
+                        model = genai.GenerativeModel(model_name)
+                        # Test generation (stream=True)
+                        response_stream = model.generate_content(full_prompt, stream=True)
+                        # If we get here without error, break loop
+                        break 
+                    except Exception as e:
+                        last_error = e
+                        continue
+                
+                if response_stream:
+                    try:
+                        for chunk in response_stream:
+                            if chunk.text:
+                                yield chunk.text
+                    except Exception as stream_error:
+                         yield f"Error streaming content: {str(stream_error)}"
+                else:
+                    yield f"Cloud Error: Could not find a working Gemini model. \nLast Error: {str(last_error)}\nMake sure your API Key is valid."
             else:
                 yield f"Running on Cloud (Vercel) but GEMINI_API_KEY is missing.\n\nPlease add GEMINI_API_KEY to your Vercel Environment Variables to enable Cloud Chat."
 
