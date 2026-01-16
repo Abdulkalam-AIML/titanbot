@@ -78,7 +78,8 @@ export default function Chat() {
                 return;
             }
 
-            const API_BASE_URL = import.meta.env.VITE_API_URL || "http://127.0.0.1:8000/api";
+            // Use relative path '/api' so it works on both Vercel and Local (with proxy)
+            const API_BASE_URL = import.meta.env.VITE_API_URL || "/api";
 
             const response = await fetch(`${API_BASE_URL}/chat/send`, {
                 method: "POST",
