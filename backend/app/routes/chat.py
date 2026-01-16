@@ -101,74 +101,71 @@ async def send_message(
 
     # 3. Stream Response
     # 3. Stream Response
+    # 3. Stream Response (PURE CLOUD - GEMINI ONLY)
     async def generate_response():
-        try:
-            # Attempt Local Ollama (Preferred for Privacy/Offline)
-            stream = ollama.chat(
-                model='llama3.2',
-                messages=messages_payload,
-                stream=True
-            )
-            for chunk in stream:
-                content = chunk['message']['content']
-                if content:
-                    yield content
+        gemini_key = os.getenv("GEMINI_API_KEY")
+        if not gemini_key:
+             yield f"Configuration Error: GEMINI_API_KEY is missing in Vercel. Please add it to Settings -> Environment Variables."
+             return
 
-            # Capture AI response in DB (This is tricky with streaming, usually done after stream or via callback)
-            # For this simple implementation, we won't correct the DB msg content in real-time, 
-            # but usually you'd aggregate 'full_response' and save it.
-            
-        except Exception as ollama_error:
-            # Fallback to Cloud LLM (Gemini) if Local Ollama fails (e.g., on Vercel)
-            print(f"Ollama failed: {ollama_error}. Trying Gemini...")
-            
-            gemini_key = os.getenv("GEMINI_API_KEY")
-            if gemini_key:
-                import google.generativeai as genai
-                genai.configure(api_key=gemini_key)
-                
-                # List of models to try in order of preference
-                candidate_models = ['gemini-1.5-flash', 'gemini-1.5-pro', 'gemini-1.0-pro', 'gemini-pro']
-                
-                response_stream = None
-                last_error = None
+        import google.generativeai as genai
+        genai.configure(api_key=gemini_key)
+        
+        # Priority list: reliable flash first, then powerful pro, then legacy
+        candidate_models = ['gemini-1.5-flash', 'gemini-1.5-pro', 'gemini-1.0-pro', 'gemini-pro']
+        
+        response_stream = None
+        last_error = None
+        working_model_name = None
 
-                # Reconstruct prompt (simplified)
-                full_prompt = f"{SYSTEM_PROMPT}\n\n"
-                for msg in history_msgs:
-                    full_prompt += f"{msg['role'].upper()}: {msg['content']}\n"
-                full_prompt += f"USER: {request.message}\nASSISTANT:"
+        # Reconstruct prompt
+        full_prompt = f"{SYSTEM_PROMPT}\n\n"
+        for msg in history_msgs:
+            full_prompt += f"{msg['role'].upper()}: {msg['content']}\n"
+        full_prompt += f"USER: {request.message}\nASSISTANT:"
 
-                # Try models one by one
-                for model_name in candidate_models:
-                    try:
-                        model = genai.GenerativeModel(model_name)
-                        # Test generation (stream=True)
-                        response_stream = model.generate_content(full_prompt, stream=True)
-                        # If we get here without error, break loop
-                        break 
-                    except Exception as e:
-                        last_error = e
-                        continue
-                
-                if response_stream:
-                    try:
-                        for chunk in response_stream:
-                            if chunk.text:
-                                yield chunk.text
-                    except Exception as stream_error:
-                         yield f"Error streaming content: {str(stream_error)}"
-                else:
-                    # ULTIMATE DEBUG: List what models ARE available
-                    try:
-                        available_models = []
-                        for m in genai.list_models():
-                            if 'generateContent' in m.supported_generation_methods:
-                                available_models.append(m.name)
-                        yield f"Cloud Error: None of the standard models ({candidate_models}) worked.\n\nYOUR AVAILABLE MODELS:\n{', '.join(available_models)}\n\nLast Error: {str(last_error)}"
-                    except Exception as list_error:
-                        yield f"Cloud Error: Could not find any working Gemini model and could not list models.\nCheck your API Key permissions.\nError: {str(list_error)}"
-            else:
-                yield f"Running on Cloud (Vercel) but GEMINI_API_KEY is missing.\n\nPlease add GEMINI_API_KEY to your Vercel Environment Variables to enable Cloud Chat."
+        # Attempt 1: Try Standard Models
+        for model_name in candidate_models:
+            try:
+                model = genai.GenerativeModel(model_name)
+                response_stream = model.generate_content(full_prompt, stream=True)
+                working_model_name = model_name
+                break 
+            except Exception as e:
+                last_error = e
+                continue
+        
+        # Attempt 2: If all standard failed, try to find ANY available model from user account
+        if not response_stream:
+            try:
+                for m in genai.list_models():
+                    if 'generateContent' in m.supported_generation_methods:
+                         # Try this available model
+                         try:
+                             model = genai.GenerativeModel(m.name)
+                             response_stream = model.generate_content(full_prompt, stream=True)
+                             working_model_name = m.name
+                             break
+                         except:
+                             continue
+            except:
+                pass
+
+        # Stream or Fail
+        if response_stream:
+            try:
+                for chunk in response_stream:
+                    if chunk.text:
+                        yield chunk.text
+            except Exception as stream_error:
+                    yield f"Error streaming content from {working_model_name}: {str(stream_error)}"
+        else:
+            # Failure Report
+            error_msg = f"TitanBot Cloud Error: Could not connect to Google Gemini.\n\n"
+            error_msg += f"1. We tried these models: {', '.join(candidate_models)}\n"
+            error_msg += f"2. We tried auto-discovering models from your key.\n"
+            error_msg += f"3. All failed. Last error: {str(last_error)}\n\n"
+            error_msg += "Please check your GEMINI_API_KEY is correct and has access to Generative Language API."
+            yield error_msg
 
     return StreamingResponse(generate_response(), media_type="text/event-stream")
