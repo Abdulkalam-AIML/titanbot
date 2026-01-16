@@ -311,7 +311,7 @@ export default function Chat() {
                         </motion.div>
                     ) : (
                         <AnimatePresence mode="popLayout">
-                            {messages.map((msg, index) => (
+                            {messages.map((msg) => (
                                 <motion.div
                                     key={msg.id}
                                     initial={{ opacity: 0, y: 20, scale: 0.95 }}
