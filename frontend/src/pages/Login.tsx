@@ -4,6 +4,7 @@ import { motion } from "framer-motion"
 import { useState } from "react"
 import React from "react"
 import MatrixRain from "../components/MatrixRain"
+import api from "../lib/api"
 
 export default function Login() {
     const [isLogin, setIsLogin] = useState(true);
@@ -17,14 +18,9 @@ export default function Login() {
         // ... existing Google login ...
         console.log("Mocking Google Login...");
         const mockToken = "mock_google_token_123";
-        const API_BASE_URL = import.meta.env.VITE_API_URL || "http://127.0.0.1:8000/api";
         try {
-            const response = await fetch(`${API_BASE_URL}/auth/google`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ token: mockToken }),
-            });
-            const data = await response.json();
+            const response = await api.post("/auth/google", { token: mockToken });
+            const data = response.data;
             if (data.access_token) {
                 localStorage.setItem("token", data.access_token);
                 window.location.href = "/chat";
@@ -39,14 +35,9 @@ export default function Login() {
 
     // ... existing Apple login ...
     const handleAppleLogin = async () => {
-        const API_BASE_URL = import.meta.env.VITE_API_URL || "http://127.0.0.1:8000/api";
         try {
-            const response = await fetch(`${API_BASE_URL}/auth/apple`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ identityToken: "mock_apple_token", user: "mock_user" }),
-            });
-            const data = await response.json();
+            const response = await api.post("/auth/apple", { identityToken: "mock_apple_token", user: "mock_user" });
+            const data = response.data;
             if (data.access_token) {
                 localStorage.setItem("token", data.access_token);
                 window.location.href = "/chat";
@@ -63,23 +54,18 @@ export default function Login() {
         const endpoint = isLogin ? "/auth/login" : "/auth/register";
         const body = isLogin ? { email, password } : { email, password, full_name: fullName };
 
-        const API_BASE_URL = import.meta.env.VITE_API_URL || "http://127.0.0.1:8000/api";
         try {
-            const response = await fetch(`${API_BASE_URL}${endpoint}`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(body),
-            });
-            const data = await response.json();
-            if (response.ok && data.access_token) {
+            const response = await api.post(endpoint, body);
+            const data = response.data;
+            if (data.access_token) {
                 localStorage.setItem("token", data.access_token);
                 window.location.href = "/chat";
             } else {
                 alert(data.detail || "Authentication failed");
             }
-        } catch (err) {
+        } catch (err: any) {
             console.error(err);
-            alert("Network error");
+            alert(err.response?.data?.detail || "Network error: Failed to connect to server.");
         } finally {
             setLoading(false);
         }
