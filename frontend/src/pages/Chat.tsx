@@ -133,11 +133,9 @@ export default function Chat() {
 
         } catch (err: any) {
             console.error("Chat error", err);
-            const errorMessage = err.message === "Failed to fetch"
-                ? "Error: Could not connect to server. Is it running?"
-                : `Error: ${err.message || "Something went wrong."}`;
-
-            setMessages((prev) => [...prev, { id: Date.now(), role: "assistant", content: errorMessage }]);
+            const errorMessage = err.message || "Unknown error occurred";
+            // Show exact error for debugging
+            setMessages((prev) => [...prev, { id: Date.now(), role: "assistant", content: `DEBUG ERROR: ${errorMessage}` }]);
         } finally {
             setIsLoading(false);
         }
