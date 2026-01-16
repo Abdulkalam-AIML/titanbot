@@ -95,21 +95,51 @@ Answer questions based on Machine Learning, Python, Generative AI, and software 
     messages_payload = [{"role": "system", "content": SYSTEM_PROMPT}] + history_msgs
 
     # 3. Stream Response
+    # 3. Stream Response
     async def generate_response():
         try:
-            # Call Ollama
+            # Attempt Local Ollama (Preferred for Privacy/Offline)
             stream = ollama.chat(
                 model='llama3.2',
                 messages=messages_payload,
                 stream=True
             )
-            
             for chunk in stream:
                 content = chunk['message']['content']
                 if content:
                     yield content
 
-        except Exception as e:
-            yield f"Error connecting to TitanBot Brain (Ollama): {str(e)}"
+            # Capture AI response in DB (This is tricky with streaming, usually done after stream or via callback)
+            # For this simple implementation, we won't correct the DB msg content in real-time, 
+            # but usually you'd aggregate 'full_response' and save it.
+            
+        except Exception as ollama_error:
+            # Fallback to Cloud LLM (Gemini) if Local Ollama fails (e.g., on Vercel)
+            print(f"Ollama failed: {ollama_error}. Trying Gemini...")
+            
+            gemini_key = os.getenv("GEMINI_API_KEY")
+            if gemini_key:
+                try:
+                    import google.generativeai as genai
+                    genai.configure(api_key=gemini_key)
+                    model = genai.GenerativeModel('gemini-pro')
+                    
+                    # Convert OpenAI/Ollama format to Gemini format if needed, or just send prompt
+                    # Gemini is simpler with just history.
+                    chat = model.start_chat(history=[])
+                    # Reconstruct prompt from history (simplified)
+                    full_prompt = f"{SYSTEM_PROMPT}\n\n"
+                    for msg in history_msgs:
+                        full_prompt += f"{msg['role'].upper()}: {msg['content']}\n"
+                    full_prompt += f"USER: {request.message}\nASSISTANT:"
+                    
+                    response = model.generate_content(full_prompt, stream=True)
+                    for chunk in response:
+                        if chunk.text:
+                            yield chunk.text
+                except Exception as gemini_error:
+                    yield f"Error: Both Ollama (Offline) and Gemini (Cloud) failed.\nOllama: {str(ollama_error)}\nGemini: {str(gemini_error)}"
+            else:
+                yield f"Running on Cloud (Vercel) but GEMINI_API_KEY is missing.\n\nPlease add GEMINI_API_KEY to your Vercel Environment Variables to enable Cloud Chat."
 
     return StreamingResponse(generate_response(), media_type="text/event-stream")
