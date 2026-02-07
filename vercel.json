@@ -26,6 +26,10 @@
             "dest": "/frontend/assets/$1"
         },
         {
+            "src": "/(google3fc87383d294c0e5.html|robots.txt|sitemap.xml|manifest.json|logo.png|vite.svg)",
+            "dest": "/frontend/$1"
+        },
+        {
             "src": "/(.*)",
             "dest": "/frontend/index.html"
         }
