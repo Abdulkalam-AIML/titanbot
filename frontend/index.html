@@ -36,16 +36,30 @@
   <script type="application/ld+json">
       {
         "@context": "https://schema.org",
-        "@type": "SoftwareApplication",
-        "name": "Titanbottt",
-        "applicationCategory": "EducationalApplication",
-        "operatingSystem": "Web",
-        "offers": {
-          "@type": "Offer",
-          "price": "0",
-          "priceCurrency": "USD"
-        },
-        "description": "Titanbottt is an advanced AI-powered notes generator and study assistant."
+        "@graph": [
+          {
+            "@type": "SoftwareApplication",
+            "name": "Titanbottt",
+            "applicationCategory": "EducationalApplication",
+            "operatingSystem": "Web",
+            "offers": {
+              "@type": "Offer",
+              "price": "0",
+              "priceCurrency": "USD"
+            },
+            "description": "Titanbottt is an advanced AI-powered notes generator and study assistant."
+          },
+          {
+            "@type": "WebSite",
+            "name": "Titanbottt",
+            "url": "https://titanbot.vercel.app/",
+            "description": "Titanbottt - The ultimate AI notes generator for students.",
+            "publisher": {
+              "@type": "Organization",
+              "name": "Titanbottt Team"
+            }
+          }
+        ]
       }
     </script>
 </head>
