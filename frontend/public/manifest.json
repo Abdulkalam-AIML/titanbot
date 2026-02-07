@@ -1,0 +1,16 @@
+{
+    "name": "Titanbottt - AI Notes Generator",
+    "short_name": "Titanbottt",
+    "start_url": "/",
+    "display": "standalone",
+    "background_color": "#0f172a",
+    "theme_color": "#3b82f6",
+    "orientation": "portrait",
+    "icons": [
+        {
+            "src": "/logo.png",
+            "type": "image/png",
+            "sizes": "1024x1024"
+        }
+    ]
+}
